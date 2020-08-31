@@ -1,0 +1,98 @@
+---
+title: "run_analysis.R"
+author: "Mario Vigil"
+date: "8/29/2020"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+```
+
+
+
+Dowload data / set directory
+```{r}
+if(!file.exists("~/Desktop/Coursera/CleaningData")){dir.create("~/Desktop/Coursera/CleaningData")}
+Url <- "https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip"
+download.file(Url,destfile="~/Desktop/Coursera/CleaningData/Dataset.zip",method="curl")
+unzip(zipfile="~/Desktop/Coursera/CleaningData/Dataset.zip",exdir="~/Desktop/Coursera/CleaningData")
+path <- file.path("~/Desktop/Coursera/CleaningData" , "UCI HAR Dataset")
+files<-list.files(path, recursive=TRUE)
+files
+```
+
+# 1. Merges the training and the test sets to create one data set.
+
+Data
+```{r}
+ActivityTest  <- read.table(file.path(path, "test" , "Y_test.txt" ),header = FALSE)
+ActivityTrain <- read.table(file.path(path, "train", "Y_train.txt"),header = FALSE)
+SubjectTrain <- read.table(file.path(path, "train", "subject_train.txt"),header = FALSE)
+SubjectTest  <- read.table(file.path(path, "test" , "subject_test.txt"),header = FALSE)
+FeaturesTest  <- read.table(file.path(path, "test" , "X_test.txt" ),header = FALSE)
+FeaturesTrain <- read.table(file.path(path, "train", "X_train.txt"),header = FALSE)
+
+```
+
+Merging
+```{r}
+# Row Bind
+subject <- rbind(SubjectTrain, SubjectTest)
+activity<- rbind(ActivityTrain, ActivityTest)
+features<- rbind(FeaturesTrain, FeaturesTest)
+```
+
+Variable names 
+```{r}
+names(subject)<-"subject"
+names(activity)<- "activity"
+FeatureRows <- read.table(file.path(path, "features.txt"),head=FALSE)
+names(features)<- FeatureRows$V2
+```
+
+```{r}
+SA <- cbind(subject, activity)
+total <- cbind(features, SA)
+```
+
+# 2. Extract mean and standard deviation
+
+```{r}
+MeanSD <- grep('mean|std', features)
+MeanSD <- total[,c(1,2,MeanSD + 2)]
+```
+
+# 3. Uses descriptive activity names to name the activities in the data set
+```{r}
+ActivityNames <- read.table("~/Desktop/Coursera/CleaningData/UCI HAR Dataset/activity_labels.txt", header = FALSE)
+ActivityNames
+```
+
+# 4. Uses descriptive activity names to name the activities in the data set
+
+```{r}
+names(total)<-gsub("^t", "time", names(total))
+names(total)<-gsub("^f", "frequency", names(total))
+names(total)<-gsub("Acc", "Accelerometer", names(total))
+names(total)<-gsub("Gyro", "Gyroscope", names(total))
+names(total)<-gsub("Mag", "Magnitude", names(total))
+names(total)<-gsub("BodyBody", "Body", names(total))
+
+names(total)
+```
+
+# 4. From the data set in step 4, creates a second, independent tidy data set with the average of each variable for each activity and each subject.
+
+```{r}
+
+total<-aggregate(. ~subject + activity, total, mean)
+total<-total[order(total$subject,total$activity),]
+write.table(total, file = "total.txt",row.name=FALSE)
+```
+
+
+
+
+
+
