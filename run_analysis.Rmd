@@ -1,0 +1,117 @@
+---
+title: "run_analysis.R"
+author: "Mario Vigil"
+date: "8/29/2020"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(codebook)
+library(future)
+```
+
+
+
+Dowload data / set directory
+```{r}
+if(!file.exists("~/Desktop/Coursera/CleaningData")){dir.create("~/Desktop/Coursera/CleaningData")}
+Url <- "https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip"
+download.file(Url,destfile="~/Desktop/Coursera/CleaningData/Dataset.zip",method="curl")
+unzip(zipfile="~/Desktop/Coursera/CleaningData/Dataset.zip",exdir="~/Desktop/Coursera/CleaningData")
+path <- file.path("~/Desktop/Coursera/CleaningData" , "UCI HAR Dataset")
+files<-list.files(path, recursive=TRUE)
+files
+```
+
+# 1. Merges the training and the test sets to create one data set.
+
+Data
+```{r}
+# Reading data and column names
+features <- read.table(file.path(path, "features.txt"), 
+                       col.names = c("n","functions")) # N and the different functions
+
+activities <- read.table(file.path(path, "activity_labels.txt"), 
+                         col.names = c("code", "activity")) # Code and value for each activity
+
+YTest  <- read.table(file.path(path, "test" , "Y_test.txt" ),
+                     col.names = "code") # Test labels
+
+YTrain <- read.table(file.path(path, "train", "Y_train.txt"),
+                     col.names = "code") # Training labels
+
+XTest  <- read.table(file.path(path, "test" , "X_test.txt" ),
+                     col.names = features$functions) # Test values
+
+XTrain <- read.table(file.path(path, "train", "X_train.txt"),
+                     col.names = features$functions) # Train values 
+
+SubjectTrain <- read.table(file.path(path, "train", "subject_train.txt"),
+                           col.names = "subject") # subjects in train set
+
+SubjectTest  <- read.table(file.path(path, "test" , "subject_test.txt"),
+                           col.names = "subject") # subjects in test set
+
+```
+
+Merging
+```{r}
+# Row Bind
+subject <- rbind(SubjectTrain, SubjectTest)
+YData<- rbind(YTest, YTrain)
+XData<- rbind(XTest, XTrain)
+
+# ColumnBind
+MergedData <- cbind(subject, YData, XData)
+head(MergedData)
+```
+
+
+# 2. Extract mean and standard deviation
+
+```{r}
+MeanSD <- MergedData %>% 
+        select(subject, code, contains("mean"), contains("std"))
+```
+
+
+# 3. Uses descriptive activity names to name the activities in the data set
+```{r}
+
+MeanSD$code <- activities[MeanSD$code, 2]
+```
+
+# 4. Uses descriptive activity names to name the activities in the data set
+
+```{r}
+names(MeanSD)[2] = "activity"
+names(MeanSD)<-gsub("^t", "time", names(MeanSD))
+names(MeanSD)<-gsub("^f", "frequency", names(MeanSD))
+names(MeanSD)<-gsub("Acc", "Accelerometer", names(MeanSD))
+names(MeanSD)<-gsub("Gyro", "Gyroscope", names(MeanSD))
+names(MeanSD)<-gsub("Mag", "Magnitude", names(MeanSD))
+names(MeanSD)<-gsub("BodyBody", "Body", names(MeanSD))
+
+names(MeanSD)
+```
+
+# 4. From the data set in step 4, creates a second, independent tidy data set with the average of each variable for each activity and each subject.
+
+```{r}
+
+AcceleramatorTiddy <- MeanSD %>%
+    group_by(subject, activity) %>%
+    summarise_all(funs(mean))
+write.table(AcceleramatorTiddy, "AcceleramatorTiddy.txt", row.name=FALSE)
+```
+
+# Code book
+
+```{r}
+book <- codebook(AcceleramatorTiddy)
+
+book
+```
+
+
